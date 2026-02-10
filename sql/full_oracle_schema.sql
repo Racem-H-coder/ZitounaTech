@@ -1,0 +1,287 @@
+-- =============================================================================
+-- ZITOUNA TECH - Full Oracle schema for SQL Developer
+-- Execute with F5 in SQL Developer (same Oracle user as the Qt app connection).
+-- =============================================================================
+
+-- Optional cleanup (uncomment if you need a full reset)
+/*
+DROP INDEX IDX_FACTURE_FOUR;
+DROP INDEX IDX_FACTURE_CLIENT;
+DROP INDEX IDX_FACTURE_DATE;
+DROP TABLE CONGE_REQUEST;
+DROP TABLE CANDIDATE_CV;
+DROP TABLE FACTURE;
+DROP TABLE FOURNISSEUR;
+DROP TABLE CLIENT;
+DROP TABLE STOCK;
+DROP TABLE EQUIPEMENT;
+DROP TABLE EMPLOYEE;
+DROP SEQUENCE CONGE_REQUEST_SEQ;
+DROP SEQUENCE CANDIDATE_CV_SEQ;
+DROP SEQUENCE SEQ_FACTURE;
+DROP SEQUENCE SEQ_CLIENT;
+DROP SEQUENCE STOCK_SEQ;
+DROP SEQUENCE EQUIPEMENT_SEQ;
+DROP SEQUENCE EMPLOYEE_SEQ;
+*/
+
+-- -----------------------------------------------------------------------------
+-- EMPLOYEE
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE EMPLOYEE_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE EMPLOYEE (
+    ID            NUMBER         NOT NULL,
+    NOM           VARCHAR2(100)  NOT NULL,
+    EMAIL         VARCHAR2(120)  NOT NULL,
+    TELEPHONE     VARCHAR2(20),
+    DEPART        VARCHAR2(100),
+    POSTE         VARCHAR2(100),
+    SALAIRE       NUMBER(12, 2),
+    DATE_DEBUT    DATE,
+    MOT_DE_PASSE  VARCHAR2(255),
+    CODE          VARCHAR2(4),
+    FINGER_SLOT_ID NUMBER DEFAULT -1,
+    CONSTRAINT PK_EMPLOYEE PRIMARY KEY (ID),
+    CONSTRAINT UQ_EMPLOYEE_EMAIL UNIQUE (EMAIL)
+);
+
+CREATE OR REPLACE TRIGGER EMPLOYEE_TRIGGER
+    BEFORE INSERT ON EMPLOYEE
+    FOR EACH ROW
+BEGIN
+    IF :NEW.ID IS NULL THEN
+        SELECT EMPLOYEE_SEQ.NEXTVAL INTO :NEW.ID FROM DUAL;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- CLIENT
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE SEQ_CLIENT
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE CLIENT (
+    ID_CLIENT             NUMBER        NOT NULL,
+    NOM                   VARCHAR2(100) NOT NULL,
+    PRENOM                VARCHAR2(100) NOT NULL,
+    EMAIL                 VARCHAR2(120) NOT NULL,
+    TELEPHONE             VARCHAR2(20)  NOT NULL,
+    CIN                   VARCHAR2(8)   NOT NULL,
+    GENRE                 VARCHAR2(20)  NOT NULL,
+    DATE_ENREGISTREMENT   DATE          NOT NULL,
+    ACHATS                VARCHAR2(100),
+    CONSTRAINT PK_CLIENT PRIMARY KEY (ID_CLIENT),
+    CONSTRAINT UQ_CLIENT_EMAIL UNIQUE (EMAIL),
+    CONSTRAINT UQ_CLIENT_TELEPHONE UNIQUE (TELEPHONE),
+    CONSTRAINT UQ_CLIENT_CIN UNIQUE (CIN)
+);
+
+-- -----------------------------------------------------------------------------
+-- FOURNISSEUR
+-- -----------------------------------------------------------------------------
+CREATE TABLE FOURNISSEUR (
+    ID_FOURNISSEUR        NUMBER        NOT NULL,
+    NOM                   VARCHAR2(100) NOT NULL,
+    REGION                VARCHAR2(100) NOT NULL,
+    EMAIL                 VARCHAR2(120) NOT NULL,
+    TYPE_FOURNISSEUR      VARCHAR2(80)  NOT NULL,
+    DATE_AJOUT            DATE          NOT NULL,
+    STATUS_FOURNISSEUR    VARCHAR2(40)  NOT NULL,
+    TELEPHONE             VARCHAR2(20)  NOT NULL,
+    CONSTRAINT PK_FOURNISSEUR PRIMARY KEY (ID_FOURNISSEUR),
+    CONSTRAINT UQ_FOURNISSEUR_EMAIL UNIQUE (EMAIL)
+);
+
+-- -----------------------------------------------------------------------------
+-- FACTURE
+-- -----------------------------------------------------------------------------
+CREATE TABLE FACTURE (
+    ID_FACTURE            NUMBER         NOT NULL,
+    MATRICULE_FISCAL      VARCHAR2(20)   NOT NULL,
+    NOM_ENTREPRISE        VARCHAR2(100)  NOT NULL,
+    NOM_RAISON_SOCIALE    VARCHAR2(100)  NOT NULL,
+    TYPE_FACTURE          VARCHAR2(80)   NOT NULL,
+    DATE_FACTURATION      DATE           NOT NULL,
+    PRIX_UNITAIRE         NUMBER(14, 2)  NOT NULL,
+    QUANTITE              NUMBER(10)     NOT NULL,
+    DESCRIPTION           VARCHAR2(255),
+    ID_CLIENT             NUMBER,
+    ID_FOURNISSEUR        NUMBER,
+    SIGNATURE_ELEC        VARCHAR2(64),
+    SIGNED_AT             DATE,
+    SIGNED_BY             VARCHAR2(100),
+    SIGNATURE_DRAW        VARCHAR2(4000),
+    CONSTRAINT PK_FACTURE PRIMARY KEY (ID_FACTURE),
+    CONSTRAINT FK_FACTURE_CLIENT
+        FOREIGN KEY (ID_CLIENT) REFERENCES CLIENT (ID_CLIENT)
+        ON DELETE SET NULL,
+    CONSTRAINT FK_FACTURE_FOURNISSEUR
+        FOREIGN KEY (ID_FOURNISSEUR) REFERENCES FOURNISSEUR (ID_FOURNISSEUR)
+        ON DELETE SET NULL,
+    CONSTRAINT CHK_FACTURE_PRIX CHECK (PRIX_UNITAIRE > 0),
+    CONSTRAINT CHK_FACTURE_QTE CHECK (QUANTITE > 0)
+);
+
+CREATE SEQUENCE SEQ_FACTURE
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE INDEX IDX_FACTURE_DATE ON FACTURE (DATE_FACTURATION);
+CREATE INDEX IDX_FACTURE_CLIENT ON FACTURE (ID_CLIENT);
+CREATE INDEX IDX_FACTURE_FOUR ON FACTURE (ID_FOURNISSEUR);
+
+-- -----------------------------------------------------------------------------
+-- STOCK
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE STOCK_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE STOCK (
+    ID_STOCK      NUMBER         NOT NULL,
+    TYPE_PRODUIT  VARCHAR2(200),
+    REGION        VARCHAR2(200),
+    QUANTITE      NUMBER(12, 2),
+    DATE_STOCK    DATE,
+    CONSTRAINT PK_STOCK PRIMARY KEY (ID_STOCK)
+);
+
+CREATE OR REPLACE TRIGGER STOCK_BI_TRG
+    BEFORE INSERT ON STOCK
+    FOR EACH ROW
+BEGIN
+    IF :NEW.ID_STOCK IS NULL THEN
+        SELECT STOCK_SEQ.NEXTVAL INTO :NEW.ID_STOCK FROM DUAL;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- EQUIPEMENT
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE EQUIPEMENT_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE EQUIPEMENT (
+    ID            NUMBER         NOT NULL,
+    REFERENCE     VARCHAR2(100),
+    MODELE        VARCHAR2(200),
+    MARQUE        VARCHAR2(100),
+    TYPE_EQUI     VARCHAR2(200),
+    ETAT          VARCHAR2(50),
+    NUMERO_SERIE  VARCHAR2(100),
+    COUT          NUMBER(12, 2),
+    DATE_AJOUT    DATE,
+    CONSTRAINT PK_EQUIPEMENT PRIMARY KEY (ID)
+);
+
+CREATE OR REPLACE TRIGGER EQUIPEMENT_BI_TRG
+    BEFORE INSERT ON EQUIPEMENT
+    FOR EACH ROW
+BEGIN
+    IF :NEW.ID IS NULL THEN
+        SELECT EQUIPEMENT_SEQ.NEXTVAL INTO :NEW.ID FROM DUAL;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- CONGE_REQUEST
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE CONGE_REQUEST_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE CONGE_REQUEST (
+    ID_CONGE      NUMBER         NOT NULL,
+    EMPLOYEE_ID   NUMBER         NOT NULL,
+    DATE_DEBUT    DATE           NOT NULL,
+    DATE_FIN      DATE           NOT NULL,
+    STATUS        VARCHAR2(20)   DEFAULT 'PENDING' NOT NULL,
+    REASON        VARCHAR2(1000),
+    CREATED_AT    DATE           DEFAULT SYSDATE NOT NULL,
+    CONSTRAINT PK_CONGE_REQUEST PRIMARY KEY (ID_CONGE),
+    CONSTRAINT FK_CONGE_EMPLOYEE FOREIGN KEY (EMPLOYEE_ID) REFERENCES EMPLOYEE (ID) ON DELETE CASCADE,
+    CONSTRAINT CHK_CONGE_STATUS CHECK (STATUS IN ('PENDING', 'APPROVED', 'REJECTED')),
+    CONSTRAINT CHK_CONGE_DATES CHECK (DATE_FIN >= DATE_DEBUT)
+);
+
+CREATE OR REPLACE TRIGGER CONGE_REQUEST_BI_TRG
+    BEFORE INSERT ON CONGE_REQUEST
+    FOR EACH ROW
+BEGIN
+    IF :NEW.ID_CONGE IS NULL THEN
+        SELECT CONGE_REQUEST_SEQ.NEXTVAL INTO :NEW.ID_CONGE FROM DUAL;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- CANDIDATE_CV
+-- -----------------------------------------------------------------------------
+CREATE SEQUENCE CANDIDATE_CV_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
+
+CREATE TABLE CANDIDATE_CV (
+    ID_CV             NUMBER         NOT NULL,
+    FILE_NAME         VARCHAR2(255),
+    FILE_PATH         VARCHAR2(1000),
+    CV_TEXT           CLOB,
+    CREATED_AT        DATE           DEFAULT SYSDATE NOT NULL,
+    JOB_REQUIREMENTS  CLOB,
+    MODEL_ID          VARCHAR2(255),
+    SCORE             NUMBER(3),
+    RECOMMENDATION    VARCHAR2(30),
+    EXTRACTED_SKILLS  CLOB,
+    MISSING_SKILLS    CLOB,
+    AI_RAW            CLOB,
+    ANALYZED_AT       DATE,
+    CONSTRAINT PK_CANDIDATE_CV PRIMARY KEY (ID_CV),
+    CONSTRAINT CHK_CANDIDATE_SCORE CHECK (SCORE BETWEEN 0 AND 100 OR SCORE IS NULL)
+);
+
+CREATE OR REPLACE TRIGGER CANDIDATE_CV_BI_TRG
+    BEFORE INSERT ON CANDIDATE_CV
+    FOR EACH ROW
+BEGIN
+    IF :NEW.ID_CV IS NULL THEN
+        SELECT CANDIDATE_CV_SEQ.NEXTVAL INTO :NEW.ID_CV FROM DUAL;
+    END IF;
+END;
+/
+
+-- -----------------------------------------------------------------------------
+-- Quick verification
+-- -----------------------------------------------------------------------------
+-- If EMPLOYEE already exists on an older schema, apply:
+-- ALTER TABLE EMPLOYEE ADD (CODE VARCHAR2(4));
+-- ALTER TABLE EMPLOYEE ADD (FINGER_SLOT_ID NUMBER DEFAULT -1);
+
+SELECT table_name
+FROM user_tables
+WHERE table_name IN (
+    'EMPLOYEE', 'CLIENT', 'FOURNISSEUR', 'FACTURE',
+    'STOCK', 'EQUIPEMENT', 'CONGE_REQUEST', 'CANDIDATE_CV'
+)
+ORDER BY 1;
